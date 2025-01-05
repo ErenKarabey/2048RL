@@ -21,6 +21,13 @@ while True:
     elif inp == "l": action = 1
     elif inp == "d": action = 2
     elif inp == "r": action = 3
-    else: inp = int(inp)
+    else: 
+        try:
+            action = int(inp)
+            assert 0 <= action <= 3, "Invalid input!"
+        except:
+            Board.close_display()
+            print("Invalid input!")
+            break
     
     env.step(action)
