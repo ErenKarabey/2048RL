@@ -6,8 +6,10 @@ Created on Mon Jan  6 08:17:49 2025
 """
 
 import sys
+# You need to change here
 newpath = 'C:/Users/karab/Downloads/2048reinf/2048Reinf'
 if newpath not in sys.path: sys.path.append(newpath)
+
 import Board
 import Visuals
 
