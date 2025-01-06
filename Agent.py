@@ -1,15 +1,7 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Jan  6 08:17:49 2025
-
-@author: karab
-"""
-
 import sys
-# You need to change here
-newpath = 'C:/Users/karab/Downloads/2048reinf/2048Reinf'
-if newpath not in sys.path: sys.path.append(newpath)
-
+newpath = ''
+#newpath = 'C:/Users/karab/Downloads/2048reinf/2048Reinf'
+#if newpath not in sys.path: sys.path.append(newpath)
 import Board
 import Visuals
 
@@ -17,14 +9,13 @@ import numpy as np
 import random
 import time
 
-import numpy as np
 import matplotlib.pyplot as plt
 
 import pygame
 import cv2
             
 class TDAfterStateAgent:
-    def __init__(self, env, alpha=0.1, gamma=0.9, epsilon=0.1, learning_enabled=True):
+    def __init__(self, env, alpha=0.1, gamma=0.9, epsilon=0.2, learning_enabled=True):
         self.env = env
         self.alpha = alpha  # Learning rate
         self.gamma = gamma  # Discount factor
@@ -45,8 +36,12 @@ class TDAfterStateAgent:
         state_value = self.get_state_value(state)
         next_state_value = self.get_state_value(next_state)
         
+        # Rotational symmetry
+        for i in range(4):
         # TD(0) update rule: V(s) <- V(s) + alpha * [reward + gamma * V(s') - V(s)]
-        self.V[tuple(state.flatten())] = state_value + self.alpha * (reward + self.gamma * next_state_value - state_value)
+            state = np.rot90(state)
+            self.V[tuple(state.flatten())] = state_value + self.alpha * (reward + self.gamma * next_state_value - state_value)
+
     
     def choose_action(self, state):
         """Choose an action using epsilon-greedy policy."""
@@ -75,6 +70,9 @@ class TDAfterStateAgent:
         next_state, reward, done, score = self.env.step(action, display=False, spawn=False)
         next_states = self.all_next_states(next_state)
         
+        self.env.board = state
+        self.env.zeros = len(np.where(state == 0)[0])
+        
         return reward + np.sum([p * self.get_state_value(s) for p, s in next_states])
     
     def make_move(self, state, action, display=False):
@@ -87,7 +85,11 @@ class TDAfterStateAgent:
         self.learning_enabled = learn
     
     def policy(self, state):
-        return max(range(self.env.action_space.n), key=lambda a: self.evaluate(state, a))
+        next_states = self.env.get_next_states()
+        
+        last = max([ns[0] for ns in next_states], key=lambda a: self.evaluate(state, a))
+        self.env.board = state
+        return last
     
     def play_game(self, test=False):
         """Play a game following the pseudocode."""
@@ -97,16 +99,18 @@ class TDAfterStateAgent:
         
         display = not self.learning_enabled and not test
         while not done:
+            self.env.board = state
             # Choose the best action (arg max of evaluate)
             action = self.policy(state)
             
             reward, done, next_state, next_states = self.make_move(state, action, display=display)
             
+            
             if self.learning_enabled:
                 self.td_update(state, action, reward, next_state)
             
             score += reward
-            state = next_state  # Move to the next state
+            state = next_state
         
         return np.max(state), score
     
@@ -121,6 +125,7 @@ class TDAfterStateAgent:
             
             info.append((tile, score))
             if (episode + 1) % verbose_freq == 0:
+
                 print(f'Episode {episode + 1}/{episodes}: Score {score}, Max {tile}')
                 
             if mark == episode + 1:
@@ -141,6 +146,8 @@ class TDAfterStateAgent:
             
                 self.set_learning(True)
         
+        self.training_info.append(info)
+        
     def make_video(self, video_name):
         self.set_learning(False)
         screen_size = 512
@@ -158,7 +165,7 @@ class TDAfterStateAgent:
         state = self.env.reset()
         while not done:
             # Choose the best action (arg max of evaluate
-            Visuals.draw_board(self.env.board)
+            #Visuals.draw_board(self.env.board)
             frame_path = os.path.join(newpath, f"Screenshots/frame_{move_count:05d}.png")
             pygame.image.save(screen, frame_path)
 
@@ -228,31 +235,31 @@ def load_agent(filename):
 
             
 # Initialize environment and agent
-def train():
-    env = Board.Gym2048Env(size=4, goal_power=2**14)
+
+env = Board.Gym2048Env(size=4, goal_power=2**12)
     
     #Change here based on whatsapp message
-    agent = TDAfterStateAgent(env, epsilon=0.01)
-    
-    # Train agent over 1000 episodes
-    agent.train(1000, verbose_freq=20, performance_marks=[100, 250, 500, 1000])
+agent = TDAfterStateAgent(env=env, alpha = 0.1)
 
-    save_agent(agent, os.path.join(newpath, 'Agent.pkl'))
-    agent.make_video('training_video.mp4')
+    # Train agent over 1000056 episodes
+agent.train(50000, verbose_freq=25, performance_marks=[1000, 2500, 5000, 10000, 50000])#[50*i for i in range(1,21)])
     
-train()
-# Test the trained agent
 
-# import matplotlib.pyplot as plt
-# info = np.array(info)
-# plt.plot(np.arange(episodes), info[:, 1])
-# plt.show()
+save_agent(agent, os.path.join(newpath, 'Agent.pkl'))
+    #agent.make_video('training_video.mp4')
 
-# freq = {}
-# for i in info[:, 0]:
-#     freq[i] = freq.get(i, 0) + 1
+def performance_graph(agent):
+    winss = []
+    for dct in agent.play_freqs:
+        wins = 0
+        for key in dct.keys():
+            
+            if key > 1024:
+                wins += dct[key]
+        winss.append(wins/50)
+        
+    plt.plot(np.arange(1, len(winss)+1), winss)
+    plt.title('Learning performance')
+    plt.xlabel('x50 games')
+    plt.ylabel('Winrate')
     
-# plt.bar([str(key) for key in freq.keys()], freq.values())
-# plt.show()
-# # Play a game using the trained Q-table
-# agent.play()
