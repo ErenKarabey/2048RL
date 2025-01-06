@@ -33,8 +33,7 @@ while True:
     
     env.step(action)
 
-def random_play(game_count):
-    game_count = 1000
+def random_play(game_count, record=False):
     scores = []
 
     i = 0
@@ -47,9 +46,11 @@ def random_play(game_count):
             action = np.random.randint(0, 4)
             env.step(action, display=False)
                 
-            scores.append((np.max(env.board), env.score))
-            env.reset()
-            i += 1
+        scores.append((np.max(env.board), env.score))
+        env.reset()
+            
+        i += 1
+            
                 
                 
     scores = np.array(scores)
@@ -64,9 +65,10 @@ def random_play(game_count):
     for _max in scores[:, 0]:
         powers[_max] += 1
                     
-        plt.bar([str(key) for key in powers.keys()], powers.values())
-        plt.title('Max Tile Frequency')
-        plt.xlabel('Max Tile')
-        plt.ylabel('Frequency')
-        plt.show()
+    plt.bar([str(key) for key in powers.keys()], powers.values())
+    plt.title('Max Tile Frequency')
+    plt.xlabel('Max Tile')
+    plt.ylabel('Frequency')
+    plt.show()
+
 
