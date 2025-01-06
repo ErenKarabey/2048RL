@@ -50,49 +50,69 @@ class Gym2048Env(gym.Env):
         """Sets random seed for gym.Env."""
         self.np_random, seed = gym.utils.seeding.np_random(seed)
         return [seed]
+
+    def get_next_states(self):
+        next_states = []
+        
+        self.reward = 0
+        
+        for action in range(4):
+            next_board = self.move(self.board, action)
+            reward = self.reward
+            
+            if np.all(self.board == next_board):
+                continue
+            
+            next_states.append((action, reward, next_board))
+        
+        return next_states
     
-    def step(self, direction, display=True):
+    def step(self, direction, display=True, spawn=True):
         """
         Move based on direction, spawn new tile and update score
+        Assume nonillegal move
         """
         
-        prev_board = self.board
-        self.move(direction)
+        self.reward = 0
+        self.board = self.move(self.board, direction)
         
-        if np.all(self.board == prev_board):
-            if display: print("Illegal Move")
-        else:
-            self.spawn_tile()
+        self.score += self.reward
         
         if display: self.print_board()
+        
+        if spawn: self.spawn_tile()
+        
+        return (self.board, self.reward, self.is_finished(), self.score)
     
-    def move(self, direction):
+    def move(self, board, direction):
         """
         Move based on direction
         0: Slide-Up, 1: Slide-Left, 2: Slide-Down, 3:Slide-Right
         """
-        self._dir_to_function[direction]()
+        return self._dir_to_function[direction](board)
         
-    def _left(self):
+    def _left(self, board):
         """Apply the move 'left' """
-        self.board = np.apply_along_axis(self.shift1D, 1, self.board, 'l')
+        self.reward = 0
+        return np.apply_along_axis(self.shift1D, 1, board, 'l')
         #np.flip caused the "2 2 4 8" -> "0 0 0 16" error so i rewrote the function to do a left or right shift - jay
     
-    def _right(self):
+    def _right(self, board):
         """Apply the move 'right' """
-        self.board = np.apply_along_axis(self.shift1D, 1, self.board, 'r')
+        self.reward = 0
+        return np.apply_along_axis(self.shift1D, 1, board, 'r')
         
-    def _up(self):
+    def _up(self, board):
         """Apply the move 'up' """
-        self.board = self.board.T
-        self._left()
-        self.board = self.board.T
+        self.reward = 0
+        board = self._left(board.T)
+        return board.T
     
-    def _down(self):
+    def _down(self, board):
         """Apply the move 'down' """
-        self.board = self.board.T
-        self._right()
-        self.board = self.board.T
+        self.reward = 0
+        board = self._right(board.T)
+        return board.T
     
     def shift1D(self, arr, direction): #made this a more general function since slightly different things have to happen depending on left / right. - jay
         """1D shift helper function"""
@@ -115,7 +135,7 @@ class Gym2048Env(gym.Env):
                 new_arr[i + 1] = 0
                 
                 #Update score by newly merged value
-                self.score += new_arr[i]
+                self.reward += new_arr[i]
 
         #remove leftover empty (0) tiles
         new_arr = [v for v in new_arr if v != 0]
@@ -132,7 +152,7 @@ class Gym2048Env(gym.Env):
 
     
     def is_finished(self):
-        if np.max(self.board) == 2048 or self.failed:
+        if np.max(self.board) == self.goal or self.failed:
             return True
         
         for i in range(self.size):
@@ -174,6 +194,8 @@ class Gym2048Env(gym.Env):
         
         self.failed = False
         
+        return self.board
+        
     
     def print_board(self):
         """Print board with no borders"""
@@ -183,3 +205,5 @@ class Gym2048Env(gym.Env):
         
 
         
+# For test
+test = Gym2048Env()
