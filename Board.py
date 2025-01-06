@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Dec 12 12:50:24 2024
-
-@author: karab
-"""
 
 import gymnasium as gym
 import numpy as np
@@ -22,7 +16,7 @@ class Gym2048Env(gym.Env):
         # Not reward but actual game score
         self.score = 0
         
-        
+        self.zeros = self.size * self.size - 2
         
         # These are the inherithances from gym.Env
         # 0: Slide-Up, 1: Slide-Left, 2: Slide-Down, 3:Slide-Right
@@ -73,15 +67,22 @@ class Gym2048Env(gym.Env):
         Assume nonillegal move
         """
         
-        self.reward = 0
         self.board = self.move(self.board, direction)
-        
         self.score += self.reward
         
         if display: self.print_board()
         
-        if spawn: self.spawn_tile()
+        if spawn: 
+            self.spawn_tile()
+            
+        reward = self.reward
         
+        max_tile = np.max(self.board)
+        k = self.size - 1
+        if self.board[0, 0] == max_tile or self.board[0, k] == max_tile or self.board[k, 0] == max_tile or self.board[k, k] ==  max_tile:
+                reward += max_tile
+                
+            
         return (self.board, self.reward, self.is_finished(), self.score)
     
     def move(self, board, direction):
@@ -89,6 +90,7 @@ class Gym2048Env(gym.Env):
         Move based on direction
         0: Slide-Up, 1: Slide-Left, 2: Slide-Down, 3:Slide-Right
         """
+        self.reward = 0
         return self._dir_to_function[direction](board)
         
     def _left(self, board):
@@ -168,17 +170,20 @@ class Gym2048Env(gym.Env):
     def spawn_tile(self):
         # This should be 90% i think
         """Add tiles after each move. 90% chance of 2 and 10% chance of 4"""
+        #print(self.board)
+
         if self.np_random.random() < 0.9:
             tile = 2
         else: tile = 4
 
         #If nowhere to place tile, then game is over!
-        if not (0 in self.board):
+        if self.is_finished():
             self.failed = True
             return
         
         empties_x, empties_y = np.where(self.board == 0)
-
+        self.zeros += 1
+        
         idx = self.np_random.choice(len(empties_x))
         self.board[empties_x[idx], empties_y[idx]] = tile
         
@@ -188,6 +193,7 @@ class Gym2048Env(gym.Env):
         self.board = np.zeros((self.size, self.size), dtype=np.int32)
         
         self.score = 0
+        self.zeros = self.size ** 2 - 2
         
         self.spawn_tile()
         self.spawn_tile()
@@ -201,7 +207,7 @@ class Gym2048Env(gym.Env):
         """Print board with no borders"""
         txt = str(np.matrix(self.board, dtype = np.int32))
         print(txt.replace(']', '').replace('[', ' '))
-        print(f'Score: {self.score}')
+        print(f'Max: {np.max(self.board)}')
         
 
         
