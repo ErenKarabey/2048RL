@@ -8,40 +8,11 @@ Created on Thu Dec 12 12:50:24 2024
 import gymnasium as gym
 import numpy as np
 
-# TODO: Fix the shifting algorithm
-
-# board = np.random.randint(0, 5, (4,4))
-
-# board = 2 ** board
-# board[board == 1] = 0
-
-# def _right(arr):
-    
-#     new_arr = []
-#     zero_count = 0
-    
-#     for i in range(len(arr)):
-        
-#         if arr[i] == 0:
-#             zero_count += 1
-#             continue
-        
-#         if new_arr:
-#             last = new_arr[-1]
-#             if last == arr[i]:
-#                 new_arr[-1] *= 2
-#                 zero_count += 1
-#             else:
-#                 new_arr.append(arr[i])
-#         else:
-#             new_arr.append(arr[i])
-    
-#     return [0 for _ in range(zero_count)] + new_arr
 
 class Gym2048Env(gym.Env):
     metadata = {"rendermodes": ["human"]}
     
-    def __init__(self, size=4, goal_power=2048, render_mode=None):
+    def __init__(self, size=4, goal_power=2048, render_mode=None, seed=None):
         self.size = size
         self.goal = goal_power
         self.failed = False
@@ -49,7 +20,7 @@ class Gym2048Env(gym.Env):
         assert size > 1, "The dimensions of the grid must be at least 2!"
         
         # Not reward but actual game score
-        self.current_score = 0
+        self.score = 0
         
         
         
@@ -71,7 +42,7 @@ class Gym2048Env(gym.Env):
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
         
-        self.seed(seed=1)
+        self.seed(seed=seed)
         
         self.reset()
     
@@ -80,17 +51,20 @@ class Gym2048Env(gym.Env):
         self.np_random, seed = gym.utils.seeding.np_random(seed)
         return [seed]
     
-    def step(self, direction):
+    def step(self, direction, display=True):
         """
         Move based on direction, spawn new tile and update score
         """
         
+        prev_board = self.board
         self.move(direction)
         
-        self.score = np.max(self.board)
+        if np.all(self.board == prev_board):
+            if display: print("Illegal Move")
+        else:
+            self.spawn_tile()
         
-        self.spawn_tile()
-        self.print_board()
+        if display: self.print_board()
     
     def move(self, direction):
         """
@@ -137,8 +111,11 @@ class Gym2048Env(gym.Env):
         for i in iterate_order:
             #if two same tiles next to each other, combine
             if new_arr[i] == new_arr[i + 1]:
-                new_arr[i] = new_arr[i] * 2
+                new_arr[i] = new_arr[i] * 2                
                 new_arr[i + 1] = 0
+                
+                #Update score by newly merged value
+                self.score += new_arr[i]
 
         #remove leftover empty (0) tiles
         new_arr = [v for v in new_arr if v != 0]
@@ -155,11 +132,23 @@ class Gym2048Env(gym.Env):
 
     
     def is_finished(self):
-        return self.failed
+        if np.max(self.board) == 2048 or self.failed:
+            return True
+        
+        for i in range(self.size):
+            for j in range(self.size):
+                if self.board[i][j] == 0:
+                    return False
+                if i != 0 and self.board[i - 1][j] == self.board[i][j]:
+                    return False
+                if j != 0 and self.board[i][j - 1] == self.board[i][j]:
+                    return False
+        return True
     
     def spawn_tile(self):
-        """Add tiles after each move. 80% chance of 2 and 20% chance of 4"""
-        if self.np_random.random() < 0.8:
+        # This should be 90% i think
+        """Add tiles after each move. 90% chance of 2 and 10% chance of 4"""
+        if self.np_random.random() < 0.9:
             tile = 2
         else: tile = 4
 
@@ -178,16 +167,19 @@ class Gym2048Env(gym.Env):
         """Reset the board and spawn 2 new tiles - 2 is hardcoded"""
         self.board = np.zeros((self.size, self.size), dtype=np.int32)
         
-        self.current_score = 0
+        self.score = 0
         
         self.spawn_tile()
         self.spawn_tile()
+        
+        self.failed = False
         
     
     def print_board(self):
         """Print board with no borders"""
         txt = str(np.matrix(self.board, dtype = np.int32))
         print(txt.replace(']', '').replace('[', ' '))
+        print(f'Score: {self.score}')
         
 
         
