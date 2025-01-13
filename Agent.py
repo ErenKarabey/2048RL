@@ -226,7 +226,7 @@ class TDAgent:
                 max_weight = np.max(self.weights)
                 print(f'Episode {episode}/{episodes}: {max_tile = }, {score = }, {max_weight = }')
             
-            if max_tile == 2048:
+            if max_tile == 2048 and not first_2048:
                 first_2048 = episode
                 print(f'First 2048 occured after {first_2048} episodes')
             
