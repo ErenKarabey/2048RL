@@ -1,6 +1,6 @@
 import os
 
-# mypath = 'C:/Users/karab/Desktop/CS/Year 3/RL'
+#mypath = 'C:/Users/karab/Desktop/CS/Year 3/RL'
 mypath = ''
 import sys
 if mypath not in sys.path and mypath != '':
@@ -61,7 +61,26 @@ class TDAgent:
         self.info = []
         self.current_episodes = episodes if episodes else 0
         
-         
+    
+    def n_tuple_snake_id(self, state):
+        ids = [state[0,0]]
+        n = 0
+        k = 1
+        j = 0
+        for i in range(1, 8):
+            if i == 4:
+                j = 1
+            cur = ids[-1]
+            k *= self.target_power
+            cur += state[j, abs(7*j - i)] * k
+            ids.append(cur)
+            
+        
+        return ids
+                
+    def n_tuple_test(self, state):
+        return state[:3, :2].reshape(2,3)
+    
     def n_tuple_4(self, state):
         x_ver = state
         x_hor = state.T
@@ -75,15 +94,17 @@ class TDAgent:
     
     def update_V(self, state, delta):
         
+        # for i, f in enumerate(self.n_tuple_test(state)):
+        #     self.weights[i][self.tuple_id(f)] += delta / self.n_tuple_len
         for _ in range(4):
             
             for i, f in enumerate(self.n_tuple_4(state)):
-                self.weights[i][self.tuple_id(f)] += delta/8
+                self.weights[i][self.tuple_id(f)] += delta / self.n_tuple_len
             
             state = np.transpose(state)
             
             for i, f in enumerate(self.n_tuple_4(state)):
-                self.weights[i][self.tuple_id(f)] += delta/8
+                self.weights[i][self.tuple_id(f)] += delta / self.n_tuple_len
             
             state = np.rot90(np.transpose(state))
             
@@ -114,7 +135,7 @@ class TDAgent:
         if delta is not None:
             
             self.update_V(state, delta)
-        return np.mean([self.weights[i][self.tuple_id(f)] for i, f in enumerate(self.n_tuple_4(state))])
+        return np.sum([self.weights[i][self.tuple_id(f)] for i, f in enumerate(self.n_tuple_4(state))])
     
         # n_rep = self.n_tuple_4(state)
         
@@ -134,16 +155,21 @@ class TDAgent:
     def evaluate(self, state, direction):
         _state, reward = self.compute_afterstate(state, direction)
         return reward + self.V(_state)
+        # state1, reward = self.compute_afterstate(state, direction)
+        
             
 
     def learn_evaluation(self, state, direction, reward, state1, state2, valid_moves):
-        next_action = max(valid_moves, key=lambda a: self.evaluate(state2, a))
+        # next_action = max(valid_moves, key=lambda a: self.evaluate(state2, a))
         
-        next_state2, r_next = self.compute_afterstate(state2, next_action)
-        v_next = self.V(next_state2)
+        # next_state2, r_next = self.compute_afterstate(state2, next_action)
+        # v_next = self.V(next_state2)
         
-        delta = r_next + v_next - self.V(state1)
-        self.V(state1, delta = self.alpha * delta / self.n_tuple_len)
+        # error = r_next + v_next - self.V(state1)
+        # self.update_V(state1, self.alpha * error)
+        # self.V(state1, delta = self.alpha * delta / self.n_tuple_len)
+        delta = self.alpha * (reward + self.V(state2) - self.V(state))
+        self.update_V(state, delta)
         
     def play_game(self):
         score = 0
@@ -314,7 +340,7 @@ game = Game()
 
 #change these two lines
 #agent = load_agent(agent_path)
-agent = TDAgent(game)
+agent = TDAgent(game, alpha=0.0025, min_alpha=0.0025, alpha_decay=1)
 
 no_training_game, score = agent.play_game_with_states()
 
@@ -326,7 +352,7 @@ visuals.pyquit()
 
 
 
-winrates, trialss = agent.train(episodes=100_000, trial_freq=1000, verbose_freq=50)
+winrates, trialss = agent.train(episodes=500_000, trial_freq=2000, verbose_freq=250)
 
 winrate_path = 'winrate.txt'
 np.savetxt(os.path.join(mypath, winrate_path), np.array(winrates))
