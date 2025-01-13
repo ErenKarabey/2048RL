@@ -1,8 +1,9 @@
 import os
 
-mypath = 'C:/Users/karab/Desktop/CS/Year 3/RL'
+# mypath = 'C:/Users/karab/Desktop/CS/Year 3/RL'
+mypath = ''
 import sys
-if mypath not in sys.path:
+if mypath not in sys.path and mypath != '':
     sys.path.append(mypath)
     
 from Game import Game
@@ -51,7 +52,7 @@ class TDAgent:
         #4 rows + 4 cols + 9 2x2 squares = 17 in n_tuple with 12**4 state space
         self.n_tuple_len = 17
         self.target_power = 12
-        self.weights = np.random.random((self.n_tuple_len, self.target_power ** 4))
+        self.weights = np.random.random((self.n_tuple_len, self.target_power ** 4)) / 100
         
         self.LUT = [{} for _ in range(self.n_tuple_len)]
         
@@ -77,12 +78,12 @@ class TDAgent:
         for _ in range(4):
             
             for i, f in enumerate(self.n_tuple_4(state)):
-                self.weights[i][self.tuple_id(f)] += delta
+                self.weights[i][self.tuple_id(f)] += delta/8
             
             state = np.transpose(state)
             
             for i, f in enumerate(self.n_tuple_4(state)):
-                self.weights[i][self.tuple_id(f)] += delta
+                self.weights[i][self.tuple_id(f)] += delta/8
             
             state = np.rot90(np.transpose(state))
             
@@ -111,8 +112,9 @@ class TDAgent:
         
     def V(self, state, delta=None):
         if delta is not None:
+            
             self.update_V(state, delta)
-        return sum([self.weights[i][self.tuple_id(f)] for i, f in enumerate(self.n_tuple_4(state))])
+        return np.mean([self.weights[i][self.tuple_id(f)] for i, f in enumerate(self.n_tuple_4(state))])
     
         # n_rep = self.n_tuple_4(state)
         
@@ -194,7 +196,9 @@ class TDAgent:
         for episode in range(1, episodes+1):
             max_tile, score = self.play_game()
             if episode % verbose_freq == 0:
-                print(f'Episode {episode}/{episodes}: {max_tile = }, {score = }')
+                #ddebugging purposes
+                max_weight = np.max(self.weights)
+                print(f'Episode {episode}/{episodes}: {max_tile = }, {score = }, {max_weight = }')
             
             if max_tile == 2048:
                 first_2048 = episode
